@@ -1,26 +1,26 @@
 `timescale 1ns / 1ps
 
 module accumulator_ctrl #(
-    parameter int N = 4,                // Μέγεθος Array
-    parameter int ACC_WIDTH = 32,       // Πλάτος Δεδομένων (32-bit)
-    parameter int ADDR_WIDTH = 10       // Βάθος Μνήμης
+    parameter int N = 4,                // ΞΞ­Ξ³ΞµΞΈΞΏΟ‚ Array
+    parameter int ACC_WIDTH = 32,       // Ξ Ξ»Ξ¬Ο„ΞΏΟ‚ Ξ”ΞµΞ΄ΞΏΞΌΞ­Ξ½Ο‰Ξ½ (32-bit)
+    parameter int ADDR_WIDTH = 10       // Ξ’Ξ¬ΞΈΞΏΟ‚ ΞΞ½Ξ®ΞΌΞ·Ο‚
 )(
     input  logic clk,
     input  logic rst,
 
-    // --- Interface με το Deskewer (Είσοδος Νέων Δεδομένων) ---
-    input  logic signed [N*ACC_WIDTH-1:0] new_sums_packed, // Τα 4 αποτελέσματα μαζί
-    input  logic valid_in,                                 // Έγκυρα δεδομένα εισόδου
+    // --- Interface ΞΌΞµ Ο„ΞΏ Deskewer (Ξ•Ξ―ΟƒΞΏΞ΄ΞΏΟ‚ ΞΞ­Ο‰Ξ½ Ξ”ΞµΞ΄ΞΏΞΌΞ­Ξ½Ο‰Ξ½) ---
+    input  logic signed [N*ACC_WIDTH-1:0] new_sums_packed, // Ξ¤Ξ± 4 Ξ±Ο€ΞΏΟ„ΞµΞ»Ξ­ΟƒΞΌΞ±Ο„Ξ± ΞΌΞ±Ξ¶Ξ―
+    input  logic valid_in,                                 // ΞΞ³ΞΊΟ…ΟΞ± Ξ΄ΞµΞ΄ΞΏΞΌΞ­Ξ½Ξ± ΞµΞΉΟƒΟΞ΄ΞΏΟ…
     input  logic last_in,                                  
 
-    // --- Control Signals (Από τον Controller) ---
-    input  logic accumulate_en,         // 0: Overwrite (1ο Tile), 1: Add (Επόμενα Tiles)
+    // --- Control Signals (Ξ‘Ο€Ο Ο„ΞΏΞ½ Controller) ---
+    input  logic accumulate_en,         // 0: Overwrite (1ΞΏ Tile), 1: Add (Ξ•Ο€ΟΞΌΞµΞ½Ξ± Tiles)
     input  logic [ADDR_WIDTH-1:0] start_addr, 
 
-    output logic done_tick,             // Ολοκληρώθηκε η εγγραφή του Batch
-    output logic busy,                  // Το pipeline έχει ενεργά δεδομένα
+    output logic done_tick,             // ΞΞ»ΞΏΞΊΞ»Ξ·ΟΟΞΈΞ·ΞΊΞµ Ξ· ΞµΞ³Ξ³ΟΞ±Ο†Ξ® Ο„ΞΏΟ… Batch
+    output logic busy,                  // Ξ¤ΞΏ pipeline Ξ­Ο‡ΞµΞΉ ΞµΞ½ΞµΟΞ³Ξ¬ Ξ΄ΞµΞ΄ΞΏΞΌΞ­Ξ½Ξ±
 
-    // --- Interface με την Accumulator BRAM (Dual Port Logic) ---
+    // --- Interface ΞΌΞµ Ο„Ξ·Ξ½ Accumulator BRAM (Dual Port Logic) ---
     // Port A: WRITE ONLY
     output logic [ADDR_WIDTH-1:0] mem_wr_addr,
     output logic [N*ACC_WIDTH-1:0] mem_din,
@@ -29,30 +29,30 @@ module accumulator_ctrl #(
     // Port B: READ ONLY
     output logic [ADDR_WIDTH-1:0] mem_rd_addr,
     output logic mem_rd_en,
-    input  logic [N*ACC_WIDTH-1:0] mem_dout // Η παλιά τιμή από τη μνήμη
+    input  logic [N*ACC_WIDTH-1:0] mem_dout // Ξ— Ο€Ξ±Ξ»ΞΉΞ¬ Ο„ΞΉΞΌΞ® Ξ±Ο€Ο Ο„Ξ· ΞΌΞ½Ξ®ΞΌΞ·
 );
 
-    // --- Εσωτερικά Σήματα Pipeline ---
+    // --- Ξ•ΟƒΟ‰Ο„ΞµΟΞΉΞΊΞ¬ Ξ£Ξ®ΞΌΞ±Ο„Ξ± Pipeline ---
     
-    // Stage 1 (Καταχώρηση εισόδων & Αίτηση ανάγνωσης)
+    // Stage 1 (ΞΞ±Ο„Ξ±Ο‡ΟΟΞ·ΟƒΞ· ΞµΞΉΟƒΟΞ΄Ο‰Ξ½ & Ξ‘Ξ―Ο„Ξ·ΟƒΞ· Ξ±Ξ½Ξ¬Ξ³Ξ½Ο‰ΟƒΞ·Ο‚)
     logic [ADDR_WIDTH-1:0] addr_d1;
     logic valid_d1, last_d1;
     logic accum_mode_d1;
     logic signed [N*ACC_WIDTH-1:0] new_data_d1; 
 
-    // Stage 2 (Αναμονή δεδομένων BRAM - Latency)
+    // Stage 2 (Ξ‘Ξ½Ξ±ΞΌΞΏΞ½Ξ® Ξ΄ΞµΞ΄ΞΏΞΌΞ­Ξ½Ο‰Ξ½ BRAM - Latency)
     logic [ADDR_WIDTH-1:0] addr_d2;
     logic valid_d2, last_d2;
     logic accum_mode_d2;
     logic signed [N*ACC_WIDTH-1:0] new_data_d2;
 
-    // Unpacked μορφή για τις πράξεις
+    // Unpacked ΞΌΞΏΟΟ†Ξ® Ξ³ΞΉΞ± Ο„ΞΉΟ‚ Ο€ΟΞ¬ΞΎΞµΞΉΟ‚
     logic signed [ACC_WIDTH-1:0] old_values [0:N-1];
     logic signed [ACC_WIDTH-1:0] new_values [0:N-1];
     logic signed [ACC_WIDTH-1:0] result_values [0:N-1];
 
 
-    // Το busy ενημερώνεται ώστε να περιλαμβάνει και το νέο _d2 stage
+    // Ξ¤ΞΏ busy ΞµΞ½Ξ·ΞΌΞµΟΟΞ½ΞµΟ„Ξ±ΞΉ ΟΟƒΟ„Ξµ Ξ½Ξ± Ο€ΞµΟΞΉΞ»Ξ±ΞΌΞ²Ξ¬Ξ½ΞµΞΉ ΞΊΞ±ΞΉ Ο„ΞΏ Ξ½Ξ­ΞΏ _d2 stage
     assign busy = valid_in | valid_d1 | valid_d2 | mem_we;
 
     // ----------------------------------------------------------------
@@ -69,7 +69,7 @@ module accumulator_ctrl #(
         end else begin
             if (valid_in) begin
                 mem_rd_addr <= start_addr;
-                mem_rd_en   <= 1; // Ενεργοποιήθηκε η ανάγνωση!
+                mem_rd_en   <= 1; // Ξ•Ξ½ΞµΟΞ³ΞΏΟ€ΞΏΞΉΞ®ΞΈΞ·ΞΊΞµ Ξ· Ξ±Ξ½Ξ¬Ξ³Ξ½Ο‰ΟƒΞ·!
 
                 new_data_d1   <= new_sums_packed;
                 accum_mode_d1 <= accumulate_en;
@@ -85,7 +85,7 @@ module accumulator_ctrl #(
     end
 
     // ----------------------------------------------------------------
-    // Stage 2: Pipeline Delay (Περιμένουμε 1 κύκλο τη BRAM)
+    // Stage 2: Pipeline Delay (Ξ ΞµΟΞΉΞΌΞ­Ξ½ΞΏΟ…ΞΌΞµ 1 ΞΊΟΞΊΞ»ΞΏ Ο„Ξ· BRAM)
     // ----------------------------------------------------------------
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -109,16 +109,16 @@ module accumulator_ctrl #(
     genvar i;
     generate
         for (i = 0; i < N; i++) begin : adder_loop
-            // Χρησιμοποιούμε τα σήματα του Stage 2 (_d2) που είναι συγχρονισμένα με το mem_dout
+            // Ξ§ΟΞ·ΟƒΞΉΞΌΞΏΟ€ΞΏΞΉΞΏΟΞΌΞµ Ο„Ξ± ΟƒΞ®ΞΌΞ±Ο„Ξ± Ο„ΞΏΟ… Stage 2 (_d2) Ο€ΞΏΟ… ΞµΞ―Ξ½Ξ±ΞΉ ΟƒΟ…Ξ³Ο‡ΟΞΏΞ½ΞΉΟƒΞΌΞ­Ξ½Ξ± ΞΌΞµ Ο„ΞΏ mem_dout
             assign old_values[i] = mem_dout[i*ACC_WIDTH +: ACC_WIDTH];
             assign new_values[i] = new_data_d2[i*ACC_WIDTH +: ACC_WIDTH];
 
             always_comb begin
                 if (accum_mode_d2) begin
-                    // MODE: ADD (Προσθέτουμε στο υπάρχον)
+                    // MODE: ADD (Ξ ΟΞΏΟƒΞΈΞ­Ο„ΞΏΟ…ΞΌΞµ ΟƒΟ„ΞΏ Ο…Ο€Ξ¬ΟΟ‡ΞΏΞ½)
                     result_values[i] = old_values[i] + new_values[i];
                 end else begin
-                    // MODE: OVERWRITE (Γράφουμε το καινούργιο πάνω στο παλιό)
+                    // MODE: OVERWRITE (Ξ“ΟΞ¬Ο†ΞΏΟ…ΞΌΞµ Ο„ΞΏ ΞΊΞ±ΞΉΞ½ΞΏΟΟΞ³ΞΉΞΏ Ο€Ξ¬Ξ½Ο‰ ΟƒΟ„ΞΏ Ο€Ξ±Ξ»ΞΉΟ)
                     result_values[i] = new_values[i];
                 end
             end
@@ -135,7 +135,7 @@ module accumulator_ctrl #(
             mem_din     <= 0;
             done_tick   <= 0;
         end else begin
-            // Αν το προηγούμενο στάδιο (_d2) είχε έγκυρα δεδομένα, γράφουμε
+            // Ξ‘Ξ½ Ο„ΞΏ Ο€ΟΞΏΞ·Ξ³ΞΏΟΞΌΞµΞ½ΞΏ ΟƒΟ„Ξ¬Ξ΄ΞΉΞΏ (_d2) ΞµΞ―Ο‡Ξµ Ξ­Ξ³ΞΊΟ…ΟΞ± Ξ΄ΞµΞ΄ΞΏΞΌΞ­Ξ½Ξ±, Ξ³ΟΞ¬Ο†ΞΏΟ…ΞΌΞµ
             if (valid_d2) begin
                 mem_we      <= 1;
                 mem_wr_addr <= addr_d2; 
@@ -145,7 +145,7 @@ module accumulator_ctrl #(
                     mem_din[k*ACC_WIDTH +: ACC_WIDTH] <= result_values[k];
                 end
 
-                // Status Logic: Αν αυτό που γράφουμε τώρα ήταν το "last", τότε τελειώσαμε
+                // Status Logic: Ξ‘Ξ½ Ξ±Ο…Ο„Ο Ο€ΞΏΟ… Ξ³ΟΞ¬Ο†ΞΏΟ…ΞΌΞµ Ο„ΟΟΞ± Ξ®Ο„Ξ±Ξ½ Ο„ΞΏ "last", Ο„ΟΟ„Ξµ Ο„ΞµΞ»ΞµΞΉΟΟƒΞ±ΞΌΞµ
                 if (last_d2) begin
                     done_tick <= 1;
                 end else begin
@@ -169,179 +169,3 @@ endmodule
 
 
 
-/*
-
-
-module accumulator_ctrl #(
-    parameter int N = 4,                // ??έγεθος Array
-    parameter int ACC_WIDTH = 32,       // Πλάτος Δεδομένων (32-bit)
-    parameter int ADDR_WIDTH = 10       // Βάθος ??νήμης
-)(
-    input  logic clk,
-    input  logic rst,
-
-    // --- Interface με το Deskewer (Είσοδος ??έων Δεδομένων) ---
-    input  logic signed [N*ACC_WIDTH-1:0] new_sums_packed, // Τα 4 αποτελέσματα μαζί
-    input  logic valid_in,                            // ??γκυ??α δεδομένα εισ??δου
-    input  logic last_in,                                 
-
-    // --- Control Signals (Απ?? τον Controller) ---
-    input  logic accumulate_en,         // 0: Overwrite (1ο Tile), 1: Add (Επ??μενα Tiles)
-    input  logic [ADDR_WIDTH-1:0] start_addr, 
-
-    output logic done_tick,             // <--- NEW: ??λοκλη????θηκε η εγγ??αφή του Batch
-    output logic busy,                  // <--- NEW: Το pipeline έχει ενε??γά δεδομένα
-
-    // --- Interface με την Accumulator BRAM (Dual Port Logic) ---
-    // Port A: WRITE ONLY
-    output logic [ADDR_WIDTH-1:0] mem_wr_addr,
-    output logic [N*ACC_WIDTH-1:0] mem_din,
-    output logic mem_we,
-    
-    // Port B: READ ONLY
-    output logic [ADDR_WIDTH-1:0] mem_rd_addr,
-    output logic mem_rd_en,
-    input  logic [N*ACC_WIDTH-1:0] mem_dout // Η παλιά τιμή απ?? τη μνήμη
-);
-
-    // --- Εσωτε??ικά Σήματα Pipeline ---
-    
-    // ??ετ??ητής διε??θυνσης για το διάβασμα
-    //logic [ADDR_WIDTH-1:0] current_rd_addr;
-    
-    // ??αθυστε??ημένα σήματα (για να ται??ιάξουν με το Latency της μνήμης)
-    logic [ADDR_WIDTH-1:0] addr_d1, addr_d2;
-    logic valid_d1, last_d1;
-    logic accum_mode_d1;
-    
-    logic signed [N*ACC_WIDTH-1:0] new_data_d1; // Buffer για τα δεδομένα εισ??δου
-
-    // Unpacked μο??φή για τις π??άξεις
-    logic signed [ACC_WIDTH-1:0] old_values [0:N-1];
-    logic signed [ACC_WIDTH-1:0] new_values [0:N-1];
-    logic signed [ACC_WIDTH-1:0] result_values [0:N-1];
-
-
-    assign busy = valid_in | valid_d1  | mem_we;
-
-    // ----------------------------------------------------------------
-    // Stage 1: Address Generation & Read Request
-    // ----------------------------------------------------------------
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            //current_rd_addr <= 0;
-            mem_rd_en <= 0;
-            // Reset Pipeline registers
-
-            last_d1         <= 0;
-
-            valid_d1 <= 0;
-            addr_d1  <= 0;
-            new_data_d1 <= 0;
-            accum_mode_d1 <= 0;
-        end else begin
-            // Αν έ??χονται έγκυ??α δεδομένα απ?? το Array (μέσω Deskewer)
-            if (valid_in) begin
-                // 1. Δίνουμε διε??θυνση ανάγνωσης
-                mem_rd_addr <= start_addr;
-
-                //mem_rd_addr <= start_addr + current_rd_addr;
-                mem_rd_en   <= 1; ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-                // 2. Αυξάνουμε τον μετ??ητή για το επ??μενο
-                //current_rd_addr <= current_rd_addr + 1;
-
-                // 3. Αποθηκε??ουμε τα δεδομένα εισ??δου και το control για το επ??μενο στάδιο
-                new_data_d1   <= new_sums_packed;
-                accum_mode_d1 <= accumulate_en;
-                //addr_d1       <= start_addr + current_rd_addr; // ????ατάμε ποια διε??θυνση διαβάσαμε
-                addr_d1       <= start_addr;
-                valid_d1      <= 1;
-
-                last_d1         <= last_in; // Π??ο??θηση της σημαίας "last"
-
-            end else begin
-                mem_rd_en <= 0;
-                valid_d1  <= 0;
-                // Reset counter ??ταν σταματήσει το valid (για το επ??μενο batch)
-                //current_rd_addr <= 0; 
-                last_d1         <= 0;
-            end
-        end
-    end
-
-    // ----------------------------------------------------------------
-    // Stage 2: Arithmetic Logic (Add or Overwrite)
-    // ----------------------------------------------------------------
-    // Εδ?? φτάνουν τα δεδομένα απ?? τη μνήμη (mem_dout) μετά απ?? 1 κ??κλο latency
-    
-    genvar i;
-    generate
-        for (i = 0; i < N; i++) begin : adder_loop
-            // Unpack τα wide vectors
-            assign old_values[i] = mem_dout[i*ACC_WIDTH +: ACC_WIDTH];
-            assign new_values[i] = new_data_d1[i*ACC_WIDTH +: ACC_WIDTH];
-
-            always_comb begin
-                if (accum_mode_d1) begin
-                    // MODE: ADD (Π??οσθέτουμε στο υπά??χον)
-                    result_values[i] = old_values[i] + new_values[i];
-                end else begin
-                    // MODE: OVERWRITE (Γ??άφουμε το καινο????γιο πάνω στο παλι??)
-                    // Αυτ?? συμβαίνει στο π????το tile του υπολογισμο??
-                    result_values[i] = new_values[i];
-                end
-            end
-        end
-    endgenerate
-
-    // ----------------------------------------------------------------
-    // Stage 3: Write Back
-    // ----------------------------------------------------------------
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            mem_we <= 0;
-            mem_wr_addr <= 0;
-            mem_din <= 0;
-            done_tick   <= 0;
-        end else begin
-            // Αν το π??οηγο??μενο στάδιο είχε έγκυ??α δεδομένα, γ??άφουμε
-            if (valid_d1) begin
-                mem_we      <= 1;
-                mem_wr_addr <= addr_d1; 
-                //addr_d1 <= mem_wr_addr;
-                
-                // Pack results back to wide vector
-                for (int k=0; k<N; k++) begin
-                    mem_din[k*ACC_WIDTH +: ACC_WIDTH] <= result_values[k];
-                end
-
-                // Status Logic:
-                // Αν αυτ?? που γ??άφουμε τ????α ήταν το "last", τ??τε τελει??σαμε.
-                if (last_d1) begin
-                    done_tick <= 1;
-                end else begin
-                    done_tick <= 0;
-                end
-
-
-            end else begin
-                mem_we <= 0;
-                done_tick <= 0;
-            end
-        end
-    end
-
-endmodule
-
-
-
-
-
-
-
-
-
-
-
-*/

@@ -1,0 +1,56 @@
+# vsim -c -do "run 1000ns; quit" work.tb_tpu_system 
+# Start time: 23:38:05 on Sep 20,2026
+# Loading sv_std.std
+# Loading work.tb_tpu_system
+# Loading work.tpu_top
+# Loading work.axis_to_bram_writer
+# Loading work.simple_fifo
+# Loading work.bram
+# Loading work.weight_loader
+# Loading work.ping_pong_memory
+# Loading work.matrix_loader
+# Loading work.input_skewer_col
+# Loading work.input_skewer_row
+# Loading work.ws_systolic_array
+# Loading work.ws_output_deskewer
+# Loading work.accumulator_wrapper
+# Loading work.accumulator_ctrl
+# Loading work.acc_ping_pong_wrapper
+# Loading work.acc_bram
+# Loading work.bias_adder
+# Loading work.activation_unit
+# Loading work.quantizer_unit
+# Loading work.output_store_unit
+# Loading work.bram_to_axis_reader
+# Loading work.fifo_axis
+# Loading work.ws_systolic_pe
+# ** Warning: (vsim-3017) tb_tpu_system.sv(67): [TFMPC] - Too few port connections. Expected 62, found 61.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_tpu_system/dut File: ../rtl/tpu_top.sv
+# ** Warning: (vsim-3722) tb_tpu_system.sv(67): [TFMPC] - Missing connection for port 'compute_chain_ready'.
+# ** Warning: (vsim-3017) ../rtl/tpu_top.sv(328): [TFMPC] - Too few port connections. Expected 17, found 15.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_tpu_system/dut/u_array File: ../rtl/ws_systolic_array.sv
+# ** Warning: (vsim-3722) ../rtl/tpu_top.sv(328): [TFMPC] - Missing connection for port 'row_out'.
+# ** Warning: (vsim-3722) ../rtl/tpu_top.sv(328): [TFMPC] - Missing connection for port 'col_out'.
+# ** Warning: (vsim-3015) ../rtl/tpu_top.sv(370): [PCDPC] - Port size (9) does not match connection size (32) for port 'cfg_cols'. The port definition is at: ../rtl/axis_to_bram_writer.sv(18).
+#    Time: 0 ps  Iteration: 0  Instance: /tb_tpu_system/dut/u_loader_bias File: ../rtl/axis_to_bram_writer.sv
+# ** Warning: (vsim-3017) ../rtl/tpu_top.sv(395): [TFMPC] - Too few port connections. Expected 18, found 16.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_tpu_system/dut/u_bias_add File: ../rtl/bias.sv
+# ** Warning: (vsim-3015) ../rtl/tpu_top.sv(395): [PCDPC] - Port size (9) does not match connection size (32) for port 'cfg_num_tile_cols'. The port definition is at: ../rtl/bias.sv(16).
+#    Time: 0 ps  Iteration: 0  Instance: /tb_tpu_system/dut/u_bias_add File: ../rtl/bias.sv
+# ** Warning: (vsim-3722) ../rtl/tpu_top.sv(395): [TFMPC] - Missing connection for port 'busy'.
+# ** Warning: (vsim-3722) ../rtl/tpu_top.sv(395): [TFMPC] - Missing connection for port 'done'.
+# run 1000ns
+# ** Warning: (vsim-7) Failed to open readmem file "gelu_table.mem" in read mode.
+# No such file or directory. (errno = ENOENT)    : ../rtl/activation_unit.sv(81)
+#    Time: 0 ps  Iteration: 0  Instance: /tb_tpu_system/dut/u_act
+# ** Warning: (vsim-7) Failed to open readmem file "sigmoid_table.mem" in read mode.
+# No such file or directory. (errno = ENOENT)    : ../rtl/activation_unit.sv(82)
+#    Time: 0 ps  Iteration: 0  Instance: /tb_tpu_system/dut/u_act
+# ------------------------------------------------
+# STARTING 16x16 ARRAY RANDOM DATA SIMULATION
+# ------------------------------------------------
+# [PHASE 1] Weights Loaded (Random)
+# [PHASE 2] Data Loaded (Random)
+#  quit
+# End time: 23:38:05 on Sep 20,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 12

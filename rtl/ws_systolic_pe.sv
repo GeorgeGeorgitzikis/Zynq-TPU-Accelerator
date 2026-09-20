@@ -1,180 +1,88 @@
+// =============================================================================
+// Module: ws_systolic_pe
+// Description:
+//   Weight-Stationary Systolic Processing Element (PE) with dual-buffer
+//   (active/shadow) weight registers and DSP48-targeted Multiply-Accumulate (MAC).
+//
+// Features:
+//   - Weight-Stationary Operation: Weights are stationary in local registers while
+//     activations flow left-to-right and partial sums accumulate top-to-bottom.
+//   - Double-Buffering (Ping-Pong): Shadow weight register allows pre-loading the
+//     next tile's weights concurrently while the active weights are computing.
+//   - Systolic Swap Control: Swap handshake propagates systolically across the array.
+// =============================================================================
+
 (* use_dsp = "yes" *)
-
 module ws_systolic_pe #(
     parameter int DATA_WIDTH = 8,
-    parameter int ACC_WIDTH = 32
+    parameter int ACC_WIDTH  = 32
 )(
     input  logic clk,
     input  logic rst,
-    
-    // --- ΠΑΛΙΟ: Global Swap ---
-    // input  logic weight_swap,  <-- ΔΙΑΓΡΑΦΗ ΑΥΤΟΥ
 
-    // --- ΝΕΟ: Systolic Swap Control ---
-    input  logic swap_in_left,  // Έρχεται από αριστερά
-    input  logic swap_in_top,   // Έρχεται από πάνω
-    
-    output logic swap_out_right, // Φεύγει δεξιά
-    output logic swap_out_down,  // Φεύγει κάτω
+    // Systolic Swap Control (Wavefront propagation)
+    input  logic swap_in_left,
+    input  logic swap_in_top,
+    output logic swap_out_right,
+    output logic swap_out_down,
 
-    // ... (Τα υπόλοιπα signals παραμένουν ίδια: load_in, a_in, etc.) ...
-    //input  logic load_in_left,
+    // Weight Load Control
     input  logic load_in_top,
-    //output logic load_out_right,
-    //output logic load_out_down,
 
-    input  logic signed [DATA_WIDTH-1:0] a_in,  
-    output logic signed [DATA_WIDTH-1:0] a_out, 
-    
-    input  logic signed [ACC_WIDTH-1:0]  c_in,  
-    output logic signed [ACC_WIDTH-1:0]  c_out, 
-    
-    input  logic signed [DATA_WIDTH-1:0] w_in,  
-    output logic signed [DATA_WIDTH-1:0] w_out  
+    // Activation Data Path (Horizontal propagation: West -> East)
+    input  logic signed [DATA_WIDTH-1:0] a_in,
+    output logic signed [DATA_WIDTH-1:0] a_out,
+
+    // Partial Sum Accumulation Path (Vertical propagation: North -> South)
+    input  logic signed [ACC_WIDTH-1:0]  c_in,
+    output logic signed [ACC_WIDTH-1:0]  c_out,
+
+    // Weight Data Path (Vertical propagation during pre-loading)
+    input  logic signed [DATA_WIDTH-1:0] w_in,
+    output logic signed [DATA_WIDTH-1:0] w_out
 );
 
-    logic signed [DATA_WIDTH-1:0] w_active; 
-    logic signed [DATA_WIDTH-1:0] w_shadow; 
-    
-    //logic active_load;
-    logic active_swap; // Εσωτερικό σήμα ενεργοποίησης swap
+    // Internal Dual-Buffer Registers for Weights
+    logic signed [DATA_WIDTH-1:0] w_active;  // Currently active weight used in MAC
+    logic signed [DATA_WIDTH-1:0] w_shadow;  // Shadow weight loaded in background
 
-    // Η λογική ενεργοποίησης είναι OR: Αν έρθει σήμα από αριστερά Ή από πάνω
-    //assign active_load = load_in_left | load_in_top;
-    assign active_load =  load_in_top;
-
-    assign active_swap = swap_in_left | swap_in_top;
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            a_out          <= 0;
-            w_out          <= 0;
-            c_out          <= 0;
-            w_active       <= 0;
-            w_shadow       <= 0;
-            //load_out_right <= 0;
-            //load_out_down  <= 0;
-            
-            // Reset και στα Swap outputs
-            swap_out_right <= 0;
-            swap_out_down  <= 0;
-        end else begin
-            // 1. Προώθηση Δεδομένων & Load Signals
-            a_out <= a_in;
-            w_out <= w_in;
-            //load_out_right <= active_load;
-            //load_out_down  <= active_load;
-
-            // 2. Προώθηση SWAP Signal (Systolic Propagation)
-            // Το σήμα περνάει στους επόμενους στον επόμενο κύκλο
-            swap_out_right <= active_swap;
-            swap_out_down  <= active_swap;
-
-            // 3. Υπολογισμός MAC
-            c_out <= c_in + (a_in * w_active); 
-            
-            // 4. Shadow Loading
-            if (active_load) begin
-                w_shadow <= w_in;
-            end
-
-            // 5. Weight Swap (Ping-Pong)
-            // Τώρα γίνεται τοπικά, όταν φτάσει το κύμα "active_swap"
-            if (active_swap) begin
-                w_active <= w_shadow;
-            end
-        end
-    end
-endmodule
-
-
-
-
-/*
-
-module ws_systolic_pe #(
-    parameter int DATA_WIDTH = 8,
-    parameter int ACC_WIDTH = 32
-)(
-    input  logic clk,
-    input  logic rst,
-    
-    // --- ΠΑΛΙΟ: Global Swap ---
-    // input  logic weight_swap,  <-- ΔΙΑΓΡΑΦΗ ΑΥΤΟΥ
-
-    // --- ΝΕΟ: Systolic Swap Control ---
-    input  logic swap_in_left,  // Έρχεται από αριστερά
-    input  logic swap_in_top,   // Έρχεται από πάνω
-    
-    output logic swap_out_right, // Φεύγει δεξιά
-    output logic swap_out_down,  // Φεύγει κάτω
-
-    // ... (Τα υπόλοιπα signals παραμένουν ίδια: load_in, a_in, etc.) ...
-    input  logic load_in_left,
-    input  logic load_in_top,
-    output logic load_out_right,
-    output logic load_out_down,
-
-    input  logic signed [DATA_WIDTH-1:0] a_in,  
-    output logic signed [DATA_WIDTH-1:0] a_out, 
-    
-    input  logic signed [ACC_WIDTH-1:0]  c_in,  
-    output logic signed [ACC_WIDTH-1:0]  c_out, 
-    
-    input  logic signed [DATA_WIDTH-1:0] w_in,  
-    output logic signed [DATA_WIDTH-1:0] w_out  
-);
-
-    logic signed [DATA_WIDTH-1:0] w_active; 
-    logic signed [DATA_WIDTH-1:0] w_shadow; 
-    
     logic active_load;
-    logic active_swap; // Εσωτερικό σήμα ενεργοποίησης swap
+    logic active_swap;
 
-    // Η λογική ενεργοποίησης είναι OR: Αν έρθει σήμα από αριστερά Ή από πάνω
-    assign active_load = load_in_left | load_in_top;
+    assign active_load = load_in_top;
     assign active_swap = swap_in_left | swap_in_top;
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            a_out          <= 0;
-            w_out          <= 0;
-            c_out          <= 0;
-            w_active       <= 0;
-            w_shadow       <= 0;
-            load_out_right <= 0;
-            load_out_down  <= 0;
-            
-            // Reset και στα Swap outputs
-            swap_out_right <= 0;
-            swap_out_down  <= 0;
+            a_out          <= '0;
+            w_out          <= '0;
+            c_out          <= '0;
+            w_active       <= '0;
+            w_shadow       <= '0;
+            swap_out_right <= 1'b0;
+            swap_out_down  <= 1'b0;
         end else begin
-            // 1. Προώθηση Δεδομένων & Load Signals
+            // 1. Forward Activations & Weights (Pipelined Data Flow)
             a_out <= a_in;
             w_out <= w_in;
-            load_out_right <= active_load;
-            load_out_down  <= active_load;
 
-            // 2. Προώθηση SWAP Signal (Systolic Propagation)
-            // Το σήμα περνάει στους επόμενους στον επόμενο κύκλο
+            // 2. Systolic Propagation of Swap Control Signal
             swap_out_right <= active_swap;
             swap_out_down  <= active_swap;
 
-            // 3. Υπολογισμός MAC
-            c_out <= c_in + (a_in * w_active); 
-            
-            // 4. Shadow Loading
+            // 3. Multiply-Accumulate (MAC): c_out = c_in + (a_in * w_active)
+            c_out <= c_in + (a_in * w_active);
+
+            // 4. Background Shadow Weight Pre-Loading
             if (active_load) begin
                 w_shadow <= w_in;
             end
 
-            // 5. Weight Swap (Ping-Pong)
-            // Τώρα γίνεται τοπικά, όταν φτάσει το κύμα "active_swap"
+            // 5. Weight Buffer Swap: Promote shadow weights to active computation
             if (active_swap) begin
                 w_active <= w_shadow;
             end
         end
     end
-endmodule
 
-*/
+endmodule
